@@ -1,0 +1,209 @@
+#include <windows.h>
+#include <tlhelp32.h>
+#include <tchar.h>
+#include <iostream>
+#include <stdio.h>
+#include <vector>
+using namespace std;
+
+BOOL Process_List();
+BOOL Process_Modules(DWORD dw_PID);
+BOOL Process_Threads(DWORD dwOwnerPID);
+BOOL RunningProcesses_details();
+
+int main(void)
+{
+	system("Color 0A");
+     	cout << "|===============================================================================|" << endl; 
+        cout << "|============================= cH@rL!3.xRad!+!0n ===============================|" << endl;  
+        cout << "|===============================================================================|" << endl;  
+        cout << "|                             Program Description                               |" << endl;  
+        cout << "|                    To View Processes Details and Modules                      |" << endl;  
+        cout << "|===============================================================================|" << endl;  
+        cout << "|============================= Abdullah Awais ==================================|" << endl;  
+        cout << "|===============================================================================|" << endl;  
+        cout << "" << endl;
+      	cout << "" << endl;
+	      cout << "" << endl;
+	      cout << "" << endl;
+	      cout << "Select any one of the Option listed below" << endl;
+	      cout << "" << endl;
+	      cout << "" << endl;
+	      cout << "1- To list all the running Processes and Associated  Modules"  << endl;
+	      cout << "2- List Processes and Threads" << endl;
+	      cout << "" << endl;
+	      cout << "" << endl;
+		
+		    char option;
+		    cout << "Enter Option: ";
+    		cin >> option;
+    	
+    	
+   switch(option) {
+      case '1' :
+         cout << "+++++++++" << endl; 
+         cout << "" << endl;
+		 Process_List();
+         break;
+      case '2' :
+         cout << "++++++++" << endl;
+         cout << "" << endl;
+		 RunningProcesses_details();
+         break;
+      default :
+         cout << "Invalid Option" << endl;
+         break;
+   }
+  
+    return 0;
+}
+
+BOOL Process_List()
+{
+    HANDLE hProcessSnap;
+    HANDLE hProcess;
+    PROCESSENTRY32 pe32;
+    DWORD dwPriority_Class;
+
+
+    hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hProcessSnap == INVALID_HANDLE_VALUE)
+    {
+        _tprintf(TEXT("CreateToolhelp32Snapshot (of processes)"));
+        return(FALSE);
+    }
+
+    pe32.dwSize = sizeof(PROCESSENTRY32);
+
+    if (!Process32First(hProcessSnap, &pe32))
+    {
+        _tprintf(TEXT("Process32First")); // show cause of failure
+        CloseHandle(hProcessSnap);          // clean the snapshot object
+        return(FALSE);
+    }
+
+    do
+    {
+        _tprintf(TEXT("\n\n................................................"));
+        _tprintf(TEXT("\nProcess Name:  %s"), pe32.szExeFile);   
+        _tprintf(TEXT("\n.................................................."));        
+        dwPriority_Class = 0;
+        hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pe32.th32ProcessID);
+        if (hProcess == NULL)
+            _tprintf(TEXT("OpenProcess!"));
+        else
+        {
+            dwPriority_Class = GetPriorityClass(hProcess);
+            if (!dwPriority_Class)
+                _tprintf(TEXT("GetPriorityClass"));
+            CloseHandle(hProcess);
+        }
+
+        _tprintf(TEXT("\n  Process ID        = 0x%08X"), pe32.th32ProcessID);
+        _tprintf(TEXT("\n  Thread count      = %d"), pe32.cntThreads);
+        _tprintf(TEXT("\n  Parent process ID = 0x%08X"), pe32.th32ParentProcessID);
+        _tprintf(TEXT("\n  Priority base     = %d"), pe32.pcPriClassBase);
+        _tprintf(TEXT("\n  Size     = %d"), pe32.dwSize);
+        _tprintf(TEXT("\n  Usage     = %d"), pe32.cntUsage);
+        _tprintf(TEXT("\n  Flags     = %d"), pe32.dwFlags);
+        if (dwPriority_Class)
+            _tprintf(TEXT("\n  Priority class    = %d"), dwPriority_Class);
+            		
+      	Process_Modules(pe32.th32ProcessID);
+        Process_Threads(pe32.th32ProcessID);
+
+    } while (Process32Next(hProcessSnap, &pe32));
+
+    CloseHandle(hProcessSnap);
+    return(TRUE);
+}
+
+
+BOOL Process_Modules(DWORD dw_PID)
+{
+    HANDLE hModuleSnap = INVALID_HANDLE_VALUE;
+    MODULEENTRY32 ME32;
+
+     hModuleSnap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, dw_PID);
+    if (hModuleSnap == INVALID_HANDLE_VALUE)
+    {
+        _tprintf(TEXT("CreateToolhelp32Snapshot (of modules)"));
+        return(FALSE);
+    }
+
+    ME32.dwSize = sizeof(MODULEENTRY32);
+    if (!Module32First(hModuleSnap, &ME32))
+    {
+        _tprintf(TEXT("Module32First"));  // show cause of failure
+        CloseHandle(hModuleSnap);           // clean the snapshot object
+        return(FALSE);
+    }
+    do
+    {
+        printf("\nProcess ID: %u\n", dw_PID);
+        _tprintf(TEXT("\n\n   Module Name:     %s"), ME32.szModule);
+        _tprintf(TEXT("\n     Executable     = %s"), ME32.szExePath);
+        _tprintf(TEXT("\n     Process ID     = 0x%08X"), ME32.th32ProcessID);
+        _tprintf(TEXT("\n     Module ID      = %d"), ME32.th32ModuleID);
+        _tprintf(TEXT("\n     Base size      = %d"), ME32.modBaseSize);
+
+    } while (Module32Next(hModuleSnap, &ME32));
+
+    CloseHandle(hModuleSnap);
+    return(TRUE);
+}
+
+BOOL Process_Threads(DWORD dwOwnerPID)
+{
+    HANDLE hThreadSnap = INVALID_HANDLE_VALUE;
+    THREADENTRY32 te32;
+ 
+    hThreadSnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if (hThreadSnap == INVALID_HANDLE_VALUE)
+        return(FALSE);
+
+    te32.dwSize = sizeof(THREADENTRY32);
+
+    if (!Thread32First(hThreadSnap, &te32))
+    {
+        _tprintf(TEXT("Thread32First")); // show cause of failure
+        CloseHandle(hThreadSnap);          // clean the snapshot object
+        return(FALSE);
+    }
+
+    do
+    {
+        if (te32.th32OwnerProcessID == dwOwnerPID)
+        {
+            _tprintf(TEXT("\n\n     THREAD ID      = 0x%08X"), te32.th32ThreadID);
+            _tprintf(TEXT("\n     Base priority  = %d"), te32.tpBasePri);
+            _tprintf(TEXT("\n     Delta priority = %d"), te32.tpDeltaPri);
+            _tprintf(TEXT("\n"));
+        }
+    } while (Thread32Next(hThreadSnap, &te32));
+
+    CloseHandle(hThreadSnap);
+    return(TRUE);
+}
+
+	RunningProcesses_details()
+{
+   HANDLE hSnapshot = ::CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+
+	if (hSnapshot == INVALID_HANDLE_VALUE)
+		return 1;
+
+	PROCESSENTRY32 pe;
+	pe.dwSize = sizeof(pe);
+
+	if (::Process32First(hSnapshot, &pe)) {
+		do {
+			printf("PID: %u\tThreads: %u\tPPID: %u\tName: %ws\n", pe.th32ProcessID, pe.cntThreads, pe.th32ParentProcessID, pe.szExeFile);
+			
+			} while (::Process32Next(hSnapshot, &pe));
+	}
+
+	::CloseHandle(hSnapshot);
+
+	return 0;
+}
